@@ -77,7 +77,7 @@ export default async function AdminQuotationsPage({ searchParams }: { searchPara
 
   return (
     <div className="min-h-full p-6 lg:p-8">
-      <div className="mb-8 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface via-surface to-accent/5">
+      <div className="mb-8 overflow-hidden rounded-3xl border border-border bg-linear-to-br from-surface via-surface to-accent/5">
         <div className="relative p-6 lg:p-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.12),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.10),transparent_35%)]" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -94,7 +94,7 @@ export default async function AdminQuotationsPage({ searchParams }: { searchPara
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[46rem]">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-184">
               <StatCard label="Total" value={quotations.length} icon={<ClipboardList className="h-4 w-4" />} />
               <StatCard label="Submitted" value={submittedCount} icon={<Clock className="h-4 w-4" />} accent={submittedCount > 0} />
               <StatCard label="Approved" value={approvedCount} icon={<CheckCircle className="h-4 w-4" />} />

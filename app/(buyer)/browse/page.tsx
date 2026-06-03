@@ -5,6 +5,7 @@ import { formatINR, getPriceDisplayLabel } from "@/lib/units"
 import { cn } from "@/lib/utils"
 import type { Dimension } from "@/types"
 import { AlertTriangle, Boxes, FlaskConical, Package, Search, ShieldCheck } from "lucide-react"
+import type { Product } from "@prisma/client"
 import RequestQuote from "@/components/buyer/request-quote"
 import QuoteCart from "@/components/buyer/quote-cart"
 
@@ -35,7 +36,7 @@ export default async function BuyerBrowsePage({ searchParams }: { searchParams: 
   const category = firstValue(params.category)?.trim() ?? ""
   const dimension = firstValue(params.dimension)?.trim() ?? ""
 
-  const [allProducts, categories, products] = await Promise.all([
+  const [allProductsRaw, categories, productsRaw] = await Promise.all([
     prisma.product.findMany({
         where: { isActive: true },
         select: {
@@ -85,18 +86,21 @@ export default async function BuyerBrowsePage({ searchParams }: { searchParams: 
     }),
   ])
 
-  const lowStockCount = allProducts.filter((product) => toNumber(product.stockQty) <= toNumber(product.reorderLevel)).length
-  const categoryCount = new Set(allProducts.map((product) => product.category)).size
+  const allProducts = allProductsRaw as Product[]
+  const products = productsRaw as Product[]
+
+  const lowStockCount = allProducts.filter((product: Product) => toNumber(product.stockQty) <= toNumber(product.reorderLevel)).length
+  const categoryCount = new Set(allProducts.map((product: Product) => product.category)).size
   const averagePrice =
     allProducts.length > 0
-      ? allProducts.reduce((sum, product) => sum + toNumber(product.pricePerBase), 0) / allProducts.length
+      ? allProducts.reduce((sum: number, product: Product) => sum + toNumber(product.pricePerBase), 0) / allProducts.length
       : 0
   const categoryOptions = categories.map((item) => item.category)
   const isFiltered = Boolean(search || category || dimension)
 
   return (
     <div className="min-h-full p-6 lg:p-8">
-      <div className="mb-8 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface via-surface to-accent/5">
+      <div className="mb-8 overflow-hidden rounded-3xl border border-border bg-linear-to-br from-surface via-surface to-accent/5">
         <div className="relative p-6 lg:p-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.10),transparent_35%)]" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -113,7 +117,7 @@ export default async function BuyerBrowsePage({ searchParams }: { searchParams: 
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[46rem]">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-184">
               <StatCard label="Active" value={allProducts.length} icon={<Package className="h-4 w-4" />} />
               <StatCard label="Categories" value={categoryCount} icon={<Boxes className="h-4 w-4" />} />
               <StatCard label="Low stock" value={lowStockCount} icon={<AlertTriangle className="h-4 w-4" />} accent={lowStockCount > 0} />
@@ -200,10 +204,10 @@ export default async function BuyerBrowsePage({ searchParams }: { searchParams: 
           ) : (
             <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                 {products.map((product) => {
-                const stock = toNumber(product.stockQty)
-                const reorder = toNumber(product.reorderLevel)
-                const minOrder = toNumber(product.minOrderQty)
-                const lowStock = stock <= reorder
+                  const stock = toNumber(product.stockQty)
+                  const reorder = toNumber(product.reorderLevel)
+                  const minOrder = toNumber(product.minOrderQty)
+                  const lowStock = stock <= reorder
 
                   // Serialize Decimal fields to plain JS values for client components
                   const productLite = {
