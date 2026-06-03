@@ -5,6 +5,7 @@ import { formatINR } from "@/lib/units"
 import { cn } from "@/lib/utils"
 import type { QuotationStatus } from "@/types"
 import { CheckCircle, ClipboardList, Clock, Search, ShieldAlert, Truck } from "lucide-react"
+import QuotationActions from "@/components/admin/quotation-actions"
 
 type SearchParams = Promise<{
   status?: string | string[]
@@ -229,6 +230,10 @@ export default async function AdminQuotationsPage({ searchParams }: { searchPara
                             </p>
                           </div>
                         </td>
+                        <td className="px-5 py-4 align-top">
+                          <QuotationActions id={quotation.id} status={quotation.status} />
+                        </td>
+                  
                       </tr>
                     )
                   })}
