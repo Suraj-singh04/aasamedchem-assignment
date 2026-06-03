@@ -64,7 +64,14 @@ export async function POST(req: NextRequest) {
     const productMap = new Map(products.map((p) => [p.id, p]))
 
     // Validate units and build line items
-    const lineItems = []
+    const lineItems: Array<{
+      productId: string
+      orderedQtyDisplay: number
+      orderedUnit: string
+      orderedQtyBase: number
+      unitPriceSnap: number
+      lineTotal: number
+    }> = []
 
     for (const item of items) {
       const product = productMap.get(item.productId)!

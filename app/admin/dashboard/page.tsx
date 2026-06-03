@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma"
 import { StatCard } from "@/components/ui/stat-card"
 import { Badge } from "@/components/ui/badges"
 import { Package, ClipboardList, CheckCircle, Clock } from "lucide-react"
-import { formatINR } from "@/lib/units"
 
 export default async function AdminDashboardPage() {
   const user = await getCurrentUser()
