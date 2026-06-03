@@ -1,36 +1,170 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AasaMedChem — Minimal Quotations & Inventory App
 
-## Getting Started
+AasaMedChem is a Next.js (App Router) application for managing chemical/pharma products, buyer quotation requests (RFQs), and admin review (approve/reject). It includes product CRUD, unit-aware pricing and quantity handling, a buyer multi-item RFQ cart, and admin quotation actions with notes.
 
-First, run the development server:
+---
 
+## Features
+- Admin
+	- Product CRUD (create, update, deactivate)
+	- View quotations and Approve/Reject with an optional admin note
+- Buyer
+	- Browse catalog, add multiple items to an RFQ cart
+	- Submit multi-item RFQ with an optional note
+	- View submitted quotations and status updates
+- Auth and APIs
+	- JWT-based authentication with middleware
+	- Prisma + PostgreSQL for persistence
+
+---
+
+## Tech stack & high-level design
+- Frontend: Next.js (App Router) + React + Tailwind CSS
+- Backend: Next.js API route handlers (server components) + middleware for auth
+- Database: PostgreSQL via Prisma (Neon-compatible adapter used in seed)
+- Auth: JWT signed with `jose`, stored as an HTTP-only cookie `medchem_token`
+
+High-level flow
+- Client components/pages call server route handlers or submit forms
+- Server route handlers use Prisma to read/write the Postgres database
+- Middleware verifies JWT and forwards user info via request headers to APIs
+
+---
+
+## Database schema (key models)
+See `prisma/schema.prisma` for full definitions. Key tables/fields:
+
+- `User` (users)
+	- `id: String` (cuid)
+	- `email: String` (unique)
+	- `name: String`
+	- `passwordHash: String`
+	- `role: Enum(Admin|Buyer)`
+	- `company`, `phone`: optional
+
+- `Product` (products)
+	- `id: String`
+	- `name, sku, casNumber, description, category, grade, purity`
+	- `dimension: Enum(WEIGHT|VOLUME|COUNT)`
+	- `baseUnit: Enum(g|mL|unit)`
+	- `pricePerBase: Decimal(15,6)` — price in INR per base unit
+	- `stockQty: Decimal(15,4)`, `minOrderQty: Decimal(15,4)`, `reorderLevel: Decimal(15,4)`
+	- `isActive: Boolean`, timestamps, `createdById`
+
+- `Quotation` (quotations)
+	- `id: String`, `status: Enum(DRAFT,SUBMITTED,APPROVED,REJECTED)`
+	- `notes: String?` (buyer note), `adminNote: String?` (admin explanation)
+	- `buyerId: String`, timestamps
+
+- `QuotationItem` (quotation_items)
+	- `orderedQtyBase: Decimal(15,4)` — normalized to base unit
+	- `orderedUnit: String`, `orderedQtyDisplay: Decimal(15,4)`
+	- `unitPriceSnap: Decimal(15,6)`, `lineTotal: Decimal(15,2)`
+
+---
+
+## Unit storage and conversion strategy
+- Base units stored in DB:
+	- WEIGHT → `g` (gram)
+	- VOLUME → `mL` (milliliter)
+	- COUNT → `unit`
+- Conversion factors are implemented in `lib/units.ts`:
+	- `g`: 1
+	- `kg`: 1000
+	- `mL`: 1
+	- `L`: 1000
+	- `unit`: 1
+- Buyer-entered quantities (e.g., `kg`, `L`) are converted to base units for validation and pricing (`toBaseUnit()`), while `orderedQtyDisplay` preserves the requested value.
+
+---
+
+## How prices and quantities are stored
+- `pricePerBase`: Decimal(15,6) — INR per base unit (allows precise small-unit pricing)
+- `stockQty`, `minOrderQty`, `reorderLevel`, `orderedQtyBase`, `orderedQtyDisplay`: Decimal(15,4) — fractional base units supported
+- `lineTotal`: Decimal(15,2) — monetary totals rounded/stored to 2 decimal places
+- Calculations: the server computes line totals using base-unit math and formats with two decimal places before storing (see `app/api/buyer/quotations/route.ts`)
+
+---
+
+## Local setup (development)
+1. Clone the repo:
 ```bash
+git clone <repo-url>
+cd aasamedchem-assignment
+```
+2. Create `.env` with at least:
+```env
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+JWT_SECRET=replace_with_strong_random_value
+NODE_ENV=development
+```
+3. Install and prepare:
+```bash
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npx prisma db seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+4. Open `http://localhost:3000`.
+
+The seed script creates sample users/products (see Test credentials below).
+
+---
+
+## Connect to Neon (Postgres)
+- Create a Neon project and copy the `DATABASE_URL`.
+- Set `DATABASE_URL` in your environment (local `.env` and production env vars).
+- Apply migrations in production with:
+```bash
+npx prisma migrate deploy
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy / Re-deploy to Vercel
+1. Push repo to GitHub and import into Vercel.
+2. In Vercel Project Settings, set env vars: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`.
+3. Vercel will run the build step. Ensure `npx prisma generate` runs during build (it typically does).
+4. Run migrations safely (prefer CI step or one-off): `npx prisma migrate deploy` against production DB.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Notes: run migrations and `prisma generate` as controlled steps (CI or manual) rather than automatic in a running production process.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Test credentials (seeded)
+The seed script (`prisma/seed.ts`) creates two accounts for testing:
+- Admin: `admin@aasamedchem.com` / `admin@123`
+- Buyer: `buyer@pharmaco.com` / `buyer@123`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use these accounts to exercise both admin and buyer experiences.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Quick usage guide
+- Admin
+	- `/admin/dashboard`: overview
+	- `/admin/products`: create/edit/deactivate products
+	- `/admin/quotations`: review submitted RFQs; Approve or Reject and optionally add an `adminNote` (useful when rejecting)
+- Buyer
+	- `/buyer/browse`: browse catalog and add items to the RFQ cart
+	- `RFQ cart` (sidebar): adjust items, add a note, submit a multi-item RFQ
+	- `/buyer/my-quotations`: view status and admin notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Typical buyer RFQ flow:
+1. Add items from `/buyer/browse` to the cart (multi-item supported).
+2. Add an optional note in the cart and `Submit RFQ`.
+3. Admin reviews `/admin/quotations` and sets status; buyer sees updates and admin notes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Where to look in the code
+- Pages & APIs: `app/` and `app/api/`
+- Components: `components/` (buyer/admin UIs)
+- Prisma schema & seed: `prisma/schema.prisma`, `prisma/seed.ts`
+- Validation: `lib/validation.ts`
+- Units & conversions: `lib/units.ts`
+
+---
+
+If you want, I can add a `Dockerfile`, a GitHub Actions workflow to run migrations, or persist RFQ carts server-side for logged-in buyers. Tell me which you prefer next.
